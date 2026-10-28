@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana
+    volumes:
+      - ./configs/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Elasticsearch - Log storage
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - logging
+    restart: unless-stopped
+
+  # Kibana - Log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - logging
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  # Demo App - Test application for fault injection
+  demo-app:
+    build:
+      context: ./src/demo_app
+      dockerfile: Dockerfile
+    container_name: demo-app
+    environment:
+      - LOG_LEVEL=INFO
+      - ENABLE_METRICS=true
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring
+      - logging
+    restart: unless-stopped
+
+  # Agent System - The healing agents
+  agent-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-system
+    volumes:
+      - ./configs:/app/configs
+      - ./data:/app/data
+      - ./models:/app/models
+      - /var/run/docker.sock:/var/run/docker.sock  # For container management
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - LOG_LEVEL=INFO
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - monitoring
+      - logging
+    depends_on:
+      - prometheus
+      - elasticsearch
+      - demo-app
+    restart: unless-stopped
+
+networks:
+  monitoring:
+    driver: bridge
+  logging:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:

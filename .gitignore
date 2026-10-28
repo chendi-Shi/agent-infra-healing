@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Data & Models
+data/raw/
+data/processed/
+models/*.pth
+models/*.ckpt
+*.h5
+
+# Logs
+logs/
+*.log
+
+# Kubernetes
+*.kubeconfig
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+*.pem
+secrets/
+
+# Experiments
+experiments/runs/
+mlruns/
+wandb/

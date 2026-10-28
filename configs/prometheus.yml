@@ -1,0 +1,33 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'agent-infra-healing'
+    environment: 'development'
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Demo application
+  - job_name: 'demo-app'
+    static_configs:
+      - targets: ['demo-app:8080']
+    metrics_path: '/metrics'
+
+  # Docker containers (via cAdvisor if added)
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+
+# Alerting rules (for fault detection)
+rule_files:
+  - 'alert_rules.yml'
+
+# Alert manager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
